@@ -16,6 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const emptyState = document.getElementById('empty-state');
     const btnResetFilters = document.getElementById('btn-reset-filters');
     const notesList = document.getElementById('notes-list');
+    const btnExportCsv = document.getElementById('btn-export-csv');
+    const btnThemeToggle = document.getElementById('btn-theme-toggle');
+    
+    // Theme Switcher Initialization
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+    }
     
     // Tweet Modal Elements
     const tweetModal = document.getElementById('tweet-modal');
@@ -36,6 +44,14 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.addEventListener('input', handleSearch);
     btnClearSearch.addEventListener('click', clearSearch);
     btnResetFilters.addEventListener('click', resetFilters);
+    btnExportCsv.addEventListener('click', exportFilteredNotesToCSV);
+    
+    btnThemeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('light-theme');
+        const isLight = document.body.classList.contains('light-theme');
+        localStorage.setItem('theme', isLight ? 'light' : 'dark');
+        showToast(`Swapped to ${isLight ? 'Light' : 'Dark'} Mode`, 'info');
+    });
     
     // Filter Badges handler
     filterBadges.addEventListener('click', (e) => {
@@ -244,6 +260,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cardFooter = document.createElement('div');
                 cardFooter.className = 'card-footer';
                 
+                const btnCopyFooter = document.createElement('button');
+                btnCopyFooter.className = 'btn-copy-footer-action';
+                btnCopyFooter.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    <span>Copy Text</span>
+                `;
+                btnCopyFooter.addEventListener('click', () => {
+                    navigator.clipboard.writeText(`[BigQuery ${update.type}] (${day.date}):\n${update.content_text}`);
+                    showToast('Copied update to clipboard!', 'success');
+                });
+                
                 const btnTweet = document.createElement('button');
                 btnTweet.className = 'btn-tweet-action';
                 btnTweet.innerHTML = `
@@ -254,6 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 btnTweet.addEventListener('click', () => openTweetModal(day, update));
                 
+                cardFooter.appendChild(btnCopyFooter);
                 cardFooter.appendChild(btnTweet);
                 updateCard.appendChild(cardFooter);
                 
@@ -421,5 +452,59 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
         }, 3500);
+    }
+    
+    // Export currently filtered notes to CSV format
+    function exportFilteredNotesToCSV() {
+        if (releaseNotes.length === 0) {
+            showToast('No notes to export', 'error');
+            return;
+        }
+        
+        const headers = ['Date', 'Type', 'Content'];
+        const rows = [];
+        
+        releaseNotes.forEach(day => {
+            day.updates.forEach(update => {
+                const matchesType = activeFilter === 'all' || update.type.toLowerCase() === activeFilter.toLowerCase();
+                const matchesSearch = !searchQuery || 
+                    update.type.toLowerCase().includes(searchQuery) || 
+                    update.content_text.toLowerCase().includes(searchQuery) ||
+                    day.date.toLowerCase().includes(searchQuery);
+                    
+                if (matchesType && matchesSearch) {
+                    const escapeCSV = (text) => {
+                        if (!text) return '""';
+                        // Replace double quotes with two double quotes
+                        const clean = text.replace(/"/g, '""');
+                        return `"${clean}"`;
+                    };
+                    rows.push([
+                        escapeCSV(day.date),
+                        escapeCSV(update.type),
+                        escapeCSV(update.content_text)
+                    ]);
+                }
+            });
+        });
+        
+        if (rows.length === 0) {
+            showToast('No notes match the active filter/search to export', 'error');
+            return;
+        }
+        
+        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `bigquery_release_notes_${activeFilter}_filter.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast('Exported filtered notes to CSV!', 'success');
     }
 });
