@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeFilter = 'all';
     let searchQuery = '';
     let selectedUpdate = null; // Currently selected update for tweeting
+    let sortOrder = 'desc'; // 'desc' or 'asc'
+    const readNoteIds = new Set(JSON.parse(localStorage.getItem('readNoteIds') || '[]'));
     
     // UI Elements
     const btnRefresh = document.getElementById('btn-refresh');
@@ -18,6 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const notesList = document.getElementById('notes-list');
     const btnExportCsv = document.getElementById('btn-export-csv');
     const btnThemeToggle = document.getElementById('btn-theme-toggle');
+    const btnSortOrder = document.getElementById('btn-sort-order');
+    const btnBackToTop = document.getElementById('btn-back-to-top');
     
     // Theme Switcher Initialization
     const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -35,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSubmitTweet = document.getElementById('btn-submit-tweet');
     const tweetMetadataTag = document.getElementById('tweet-metadata-tag');
     const toastContainer = document.getElementById('toast-container');
+    const btnAutoShorten = document.getElementById('btn-auto-shorten');
     
     // Initial Load
     fetchReleaseNotes();
@@ -51,6 +56,49 @@ document.addEventListener('DOMContentLoaded', () => {
         const isLight = document.body.classList.contains('light-theme');
         localStorage.setItem('theme', isLight ? 'light' : 'dark');
         showToast(`Swapped to ${isLight ? 'Light' : 'Dark'} Mode`, 'info');
+    });
+
+    btnSortOrder.addEventListener('click', () => {
+        sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+        const iconSortDesc = btnSortOrder.querySelector('.icon-sort-desc');
+        const iconSortAsc = btnSortOrder.querySelector('.icon-sort-asc');
+        const sortText = btnSortOrder.querySelector('span');
+
+        if (sortOrder === 'desc') {
+            iconSortDesc.style.display = 'inline-block';
+            iconSortAsc.style.display = 'none';
+            sortText.textContent = 'Newest';
+        } else {
+            iconSortDesc.style.display = 'none';
+            iconSortAsc.style.display = 'inline-block';
+            sortText.textContent = 'Oldest';
+        }
+        filterAndRenderNotes();
+    });
+
+    // Scroll listener for floating back to top button
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 400) {
+            btnBackToTop.style.display = 'flex';
+        } else {
+            btnBackToTop.style.display = 'none';
+        }
+    });
+
+    btnBackToTop.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
+
+    // Keyboard shortcut listener: "/" to focus search bar
+    document.addEventListener('keydown', (e) => {
+        if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            searchInput.focus();
+            searchInput.select();
+        }
     });
     
     // Filter Badges handler
@@ -74,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tweetTextarea.addEventListener('input', updateCharCount);
     btnCopyTweet.addEventListener('click', copyTweetToClipboard);
     btnSubmitTweet.addEventListener('click', submitTweet);
+    btnAutoShorten.addEventListener('click', autoShortenTweetText);
     
     // Fetch release notes from backend API
     async function fetchReleaseNotes(force = false) {
@@ -186,6 +235,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
+        // Sort the days based on the chosen sortOrder (using ISO updated date)
+        filteredDays.sort((a, b) => {
+            const dateA = new Date(a.updated || a.date);
+            const dateB = new Date(b.updated || b.date);
+            return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+        });
+        
         renderNotesList(filteredDays);
     }
     
@@ -214,9 +270,13 @@ document.addEventListener('DOMContentLoaded', () => {
             dateGroup.appendChild(dateHeader);
             
             // Render updates for this date
-            day.updates.forEach(update => {
+            day.updates.forEach((update, idx) => {
+                const cardId = `${day.id || day.date}_${idx}`;
+                const isRead = readNoteIds.has(cardId);
+                
                 const updateCard = document.createElement('div');
-                updateCard.className = 'update-card';
+                updateCard.className = `update-card ${isRead ? 'read-state' : ''}`;
+                updateCard.dataset.cardId = cardId;
                 
                 // Card header
                 const cardHeader = document.createElement('div');
@@ -231,7 +291,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cardActions = document.createElement('div');
                 cardActions.className = 'card-actions-quick';
                 
-                // Copy text button
+                // Read/Unread toggle
+                const btnReadToggle = document.createElement('button');
+                btnReadToggle.className = 'btn-icon-share btn-read-toggle';
+                btnReadToggle.setAttribute('aria-label', isRead ? 'Mark as unread' : 'Mark as read');
+                btnReadToggle.setAttribute('title', isRead ? 'Mark as unread' : 'Mark as read');
+                btnReadToggle.innerHTML = isRead ? `
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                ` : `
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                `;
+                
+                btnReadToggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const card = btnReadToggle.closest('.update-card');
+                    const cid = card.dataset.cardId;
+                    if (readNoteIds.has(cid)) {
+                        readNoteIds.delete(cid);
+                        card.classList.remove('read-state');
+                        showToast('Marked as unread', 'info');
+                    } else {
+                        readNoteIds.add(cid);
+                        card.classList.add('read-state');
+                        showToast('Marked as read', 'success');
+                    }
+                    localStorage.setItem('readNoteIds', JSON.stringify([...readNoteIds]));
+                    
+                    const nowRead = readNoteIds.has(cid);
+                    btnReadToggle.setAttribute('aria-label', nowRead ? 'Mark as unread' : 'Mark as read');
+                    btnReadToggle.setAttribute('title', nowRead ? 'Mark as unread' : 'Mark as read');
+                    btnReadToggle.innerHTML = nowRead ? `
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                            <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                    ` : `
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    `;
+                });
+                
+                // Copy icon button (Header)
                 const btnCopy = document.createElement('button');
                 btnCopy.className = 'btn-icon-share';
                 btnCopy.setAttribute('aria-label', 'Copy update text');
@@ -246,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast('Copied update to clipboard!', 'success');
                 });
                 
+                cardActions.appendChild(btnReadToggle);
                 cardActions.appendChild(btnCopy);
                 cardHeader.appendChild(cardActions);
                 updateCard.appendChild(cardHeader);
@@ -272,6 +381,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnCopyFooter.addEventListener('click', () => {
                     navigator.clipboard.writeText(`[BigQuery ${update.type}] (${day.date}):\n${update.content_text}`);
                     showToast('Copied update to clipboard!', 'success');
+                    
+                    // Micro-interaction
+                    const originalHTML = btnCopyFooter.innerHTML;
+                    btnCopyFooter.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span style="color: #10b981;">Copied!</span>
+                    `;
+                    btnCopyFooter.disabled = true;
+                    setTimeout(() => {
+                        btnCopyFooter.innerHTML = originalHTML;
+                        btnCopyFooter.disabled = false;
+                    }, 1500);
                 });
                 
                 const btnTweet = document.createElement('button');
@@ -371,19 +494,46 @@ document.addEventListener('DOMContentLoaded', () => {
             charCounter.className = 'char-counter danger';
             charProgressBar.style.stroke = 'var(--color-deprecation)';
             btnSubmitTweet.disabled = true;
+            btnAutoShorten.style.display = 'block';
         } else if (remaining <= 20) {
             charCounter.className = 'char-counter warning';
             charProgressBar.style.stroke = 'var(--color-issue)';
             btnSubmitTweet.disabled = false;
+            btnAutoShorten.style.display = 'none';
         } else {
             charCounter.className = 'char-counter';
             charProgressBar.style.stroke = 'var(--twitter-color)';
             btnSubmitTweet.disabled = false;
+            btnAutoShorten.style.display = 'none';
         }
         
         if (count === 0) {
             btnSubmitTweet.disabled = true;
         }
+    }
+
+    // Auto-shortens the tweet text in the modal
+    function autoShortenTweetText() {
+        if (!selectedUpdate) return;
+        
+        const day = selectedUpdate.day;
+        const update = selectedUpdate.update;
+        const baseLink = day.link || 'https://docs.cloud.google.com/bigquery/docs/release-notes';
+        
+        const prefix = `[BigQuery ${update.type}] (${day.date}): `;
+        const suffix = `\n\nDetails: ${baseLink}`;
+        
+        const maxTextLen = 280 - prefix.length - suffix.length;
+        const rawText = update.content_text;
+        
+        let snippet = rawText;
+        if (rawText.length > maxTextLen) {
+            snippet = rawText.substring(0, maxTextLen - 3) + '...';
+        }
+        
+        tweetTextarea.value = `${prefix}${snippet}${suffix}`;
+        updateCharCount();
+        showToast('Auto-shortened tweet text to 280 chars', 'success');
     }
     
     // Copy Tweet text to Clipboard

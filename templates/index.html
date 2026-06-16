@@ -99,6 +99,17 @@
                     <button class="badge" data-type="Announcement">Announcements</button>
                     <button class="badge" data-type="Update">Updates</button>
                 </div>
+                <button class="btn btn-secondary btn-sort" id="btn-sort-order" aria-label="Toggle sort order" title="Toggle sort order">
+                    <svg class="icon-sort-desc" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <polyline points="19 12 12 19 5 12"></polyline>
+                    </svg>
+                    <svg class="icon-sort-asc" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                        <line x1="12" y1="19" x2="12" y2="5"></line>
+                        <polyline points="5 12 12 5 19 12"></polyline>
+                    </svg>
+                    <span>Newest</span>
+                </button>
             </div>
         </section>
 
@@ -188,7 +199,8 @@
                     </div>
                 </div>
 
-                <div class="modal-footer-info">
+                <div class="modal-footer-info" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <button class="btn btn-secondary" id="btn-auto-shorten" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; display: none; margin-right: auto; line-height: 1.2;">Auto-Shorten</button>
                     <div class="char-count-wrapper">
                         <svg class="char-progress-svg" width="30" height="30">
                             <circle class="char-progress-bg" cx="15" cy="15" r="10"></circle>
@@ -224,6 +236,13 @@
     <footer class="app-footer">
         <p>BigQuery Release Hub is an independent dashboard. Data sourced from the official <a href="https://docs.cloud.google.com/feeds/bigquery-release-notes.xml" target="_blank" rel="noopener">Google Cloud BigQuery Release Notes RSS Feed</a>.</p>
     </footer>
+
+    <!-- Floating Back to Top Button -->
+    <button class="btn-back-to-top" id="btn-back-to-top" aria-label="Back to top" style="display: none;">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+    </button>
 
     <!-- App JavaScript -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>

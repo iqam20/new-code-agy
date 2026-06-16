@@ -1076,3 +1076,79 @@ body {
         overflow-y: auto;
     }
 }
+
+/* Sort order button */
+.btn-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 99px;
+    margin-left: auto;
+}
+
+/* Floating Back to Top Button */
+.btn-back-to-top {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    cursor: pointer;
+    z-index: 900;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-back-to-top:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+}
+
+.btn-back-to-top:active {
+    transform: translateY(0);
+}
+
+/* Read State Styling */
+.update-card.read-state {
+    opacity: 0.5;
+    transform: none !important;
+    box-shadow: none !important;
+    transition: opacity var(--transition-normal);
+}
+
+.update-card.read-state:hover {
+    opacity: 0.85;
+}
+
+body.light-theme .update-card.read-state {
+    background-color: rgba(0, 0, 0, 0.02);
+    border-color: var(--border-color);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .btn-sort {
+        margin-left: 0;
+        width: 100%;
+        justify-content: center;
+        margin-top: 0.25rem;
+    }
+    
+    .btn-back-to-top {
+        bottom: 1.5rem;
+        right: 1.5rem;
+        width: 40px;
+        height: 40px;
+    }
+}
+
